@@ -1,36 +1,47 @@
 package main
 
 import (
-	"context"
 	"goplan-ai/internal/handlers"
 	"goplan-ai/internal/repository"
 	"goplan-ai/internal/services"
+	"goplan-ai/pkg/database"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	ctx := context.TODO()
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-	client, err := mongo.Connect(ctx, clientOptions)
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	client, err := database.ConnectDB(os.Getenv("MONGO_URI"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	db := client.Database("goplan_db")
-	myMockAI := &services.MockAI{}
+	db := client.Database(os.Getenv("DB_NAME"))
+
+	groqAPIKey := os.Getenv("GROQ_API_KEY")
+	if groqAPIKey == "" {
+		log.Fatal("GROQ_API_KEY environment variable not set")
+	}
+
+	aiEngine := &services.GroqAI{
+		APIKey: os.Getenv(groqAPIKey),
+	}
 
 	projectRepo := repository.NewProjectRepository(db)
-	projectService := services.NewProjectService(projectRepo, myMockAI)
+	projectService := services.NewProjectService(projectRepo, aiEngine)
 	projectHandler := handlers.NewProjectHandler(projectService)
 
 	r := gin.Default()
 
 	r.POST("/projects", projectHandler.CreateProject)
 
-	err = r.Run(":8080")
+	err = r.Run(":" + os.Getenv("PORT"))
 	if err != nil {
 		return
 	}

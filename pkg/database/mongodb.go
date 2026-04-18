@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -13,8 +14,11 @@ func ConnectDB(uri string) (*mongo.Client, error) {
 	defer cancel()
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	err = client.Ping(ctx, nil)
 	if err != nil {
-		return nil, err
+		log.Fatal("MONGODB CONNECTING ERROR: ", err) // Nếu hiện dòng này, hãy bật MongoDB Compass lên kiểm tra
 	}
+
+	log.Println("Successfully connected to MongoDB")
 	return client, nil
 }
